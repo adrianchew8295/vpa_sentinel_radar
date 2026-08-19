@@ -11,7 +11,7 @@ import requests
 TIINGO_API_KEY = "bcffe3a5cf7eeef085e405cfa4a3e5691b976217"
 
 # 专属 Google Sheets Web App 接口
-GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyXUmasuhybt_QpF3_-Z-ILBKr8eeEBvbq7Be1FzOXpi_GhpwSfQTvmOO8u1H97YwvYZg/exec"
+GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwu9_Asvct80WwHUMkM5iNKt9SrVujvoRKum8KQfwbOXF0PJ0-ouU5G78H2ZLTouEQP/exec"
 
 TARGET_INDEX = "QQQ"
 MAG_7 = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA"]
