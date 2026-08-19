@@ -1,0 +1,38 @@
+name: VPA Sentinel Radar Daily Cron
+
+on:
+  schedule:
+    # 每周一至周五 UTC 13:00 (大马/北京时间 21:00 / 美东盘前 09:00 自动巡航)
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch: # 支持网页端一键手动触发运行
+
+jobs:
+  run-sentinel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas numpy openpyxl
+
+      - name: Run Sentinel Radar
+        run: |
+          if [ -f "vpa_sentinel_radar.py" ]; then
+            python vpa_sentinel_radar.py
+          elif [ -f "vpasentinel.py" ]; then
+            python vpasentinel.py
+          elif [ -f "vpasentinel" ]; then
+            python vpasentinel
+          else
+            echo "[-] 未找到雷达脚本文件，请核对文件名！"
+            exit 1
+          fi
