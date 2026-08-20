@@ -41,15 +41,33 @@ def classify_vpa_radar(open_p, high_p, low_p, close_p, volume, avg_volume):
 
     # 1. 机构托底承接 -> WATCH
     if rvol >= 1.8 and lower_wick_ratio >= 0.40 and close_pos >= 0.33:
-        return "STOPPING_VOLUME", rvol, close_pos, "WATCH", "巨量长下影机构托底承接"
+        return (
+            "STOPPING_VOLUME",
+            rvol,
+            close_pos,
+            "WATCH",
+            "巨量长下影机构托底承接",
+        )
 
     # 2. 冲高受阻出货 -> ALERT
     if rvol >= 1.8 and upper_wick_ratio >= 0.45 and close_pos <= 0.35:
-        return "UPTHRUST_TOPPING", rvol, close_pos, "ALERT", "放量长上影诱多倒货"
+        return (
+            "UPTHRUST_TOPPING",
+            rvol,
+            close_pos,
+            "ALERT",
+            "放量长上影诱多倒货",
+        )
 
     # 3. 抛盘枯竭测试 -> WATCH
     if rvol <= 0.65 and close_pos >= 0.50 and (body / spread) <= 0.40:
-        return "LOW_VOL_TEST", rvol, close_pos, "WATCH", "缩量窄实体极度地量测试"
+        return (
+            "LOW_VOL_TEST",
+            rvol,
+            close_pos,
+            "WATCH",
+            "缩量窄实体极度地量测试",
+        )
 
     # 4. 高效放量推进 -> WATCH
     if rvol >= 1.6 and (body / spread) >= 0.60 and close_p > open_p:
@@ -57,11 +75,23 @@ def classify_vpa_radar(open_p, high_p, low_p, close_p, volume, avg_volume):
 
     # 5. 缩量冲高背离 -> ALERT
     if rvol <= 0.75 and close_p > open_p and upper_wick_ratio >= 0.30:
-        return "VOLUME_DIVERGENCE", rvol, close_pos, "ALERT", "量能萎缩虚拉动能衰竭"
+        return (
+            "VOLUME_DIVERGENCE",
+            rvol,
+            close_pos,
+            "ALERT",
+            "量能萎缩虚拉动能衰竭",
+        )
 
     # 6. 巨量原地打滑 -> ALERT
     if rvol >= 2.0 and (body / spread) <= 0.25:
-        return "ABSORPTION_STALL", rvol, close_pos, "ALERT", "爆巨量但实体狭窄推进受阻"
+        return (
+            "ABSORPTION_STALL",
+            rvol,
+            close_pos,
+            "ALERT",
+            "爆巨量但实体狭窄推进受阻",
+        )
 
     return "NORMAL", rvol, close_pos, "NEUTRAL", "常态流动性震荡"
 
@@ -132,7 +162,7 @@ def calculate_atr(df, period=14):
 
 
 def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
-    """从多日 5M 数据重采样为 1H，提取距离当前价格最近的 4H/1H 宏观阻力与支撑带 (防 Y 轴拉扯)"""
+    """从多日 5M 数据提取 4H/1H 宏观阻力与支撑带 (函数名保持原版完全一致)"""
     if df_intraday.empty or len(df_intraday) < 20:
         res_top = round(live_price + atr_val * 2.0, 2)
         res_bot = round(live_price + atr_val * 1.0, 2)
@@ -157,7 +187,7 @@ def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
         .reset_index()
     )
 
-    # 1. 寻找上方最近的阻力密集区
+    # 1. 寻找上方阻力密集区
     higher_bars = df_1h[df_1h["high"] > live_price]
     if not higher_bars.empty:
         peak_idx = higher_bars["high"].idxmax()
@@ -175,7 +205,7 @@ def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
         res_top = round(live_price + atr_val * 2.0, 2)
         res_bot = round(live_price + atr_val * 1.0, 2)
 
-    # 2. 寻找下方最近的支撑承接区
+    # 2. 寻找下方支撑承接区
     lower_bars = df_1h[df_1h["low"] < live_price]
     if not lower_bars.empty:
         trough_idx = lower_bars["low"].idxmin()
@@ -195,9 +225,9 @@ def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
 
     # 安全断言：确保上界绝对大于下界
     if res_top <= res_bot:
-        res_top, res_bot = round(res_bot + atr_val * 0.5, 2), res_bot
+        res_top = round(res_bot + atr_val * 0.5, 2)
     if sup_top <= sup_bot:
-        sup_top, sup_bot = round(sup_bot + atr_val * 0.5, 2), sup_bot
+        sup_top = round(sup_bot + atr_val * 0.5, 2)
 
     return res_top, res_bot, sup_top, sup_bot
 
@@ -264,7 +294,7 @@ def push_to_google_sheets(
     today_str = datetime.now().strftime("%Y-%m-%d")
     qqq_row = df_qqq.iloc[0].to_dict()
 
-    # 1. Today_War_Room 载荷 (包含准确的近端战役防区)
+    # 1. Today_War_Room 载荷
     war_room_headers = [
         "Date",
         "Symbol",
@@ -335,7 +365,7 @@ def push_to_google_sheets(
     try:
         res = requests.post(GOOGLE_SHEET_WEB_APP_URL, json=payload, timeout=15)
         if res.status_code == 200 and "SUCCESS" in res.text:
-            print("Google Sheets 4 大工作表已全部全自动同步更新！")
+            print(" Google Sheets 4 大工作表已全部全自动同步更新！")
         else:
             print(f"[-] Google Sheet 同步响应: {res.text}")
     except Exception as e:
@@ -361,9 +391,7 @@ def generate_sentinel_report():
         else 717.50
     )
     live_price = (
-        qqq_quote.get("tngoLast")
-        or qqq_quote.get("last")
-        or yesterday_close
+        qqq_quote.get("tngoLast") or qqq_quote.get("last") or yesterday_close
     )
     live_price = round(float(live_price), 2)
 
@@ -576,18 +604,16 @@ def generate_sentinel_report():
         mem_pulse_str,
     )
 
-    # 7. 富途指标参数注入代码
-    print("\n" + "=" * 80)
-    print(" 富途牛牛 / Moomoo 指标参数注入代码 (全选复制覆盖指标最上方):")
-    print("=" * 80)
-    print(f"RES_TOP := {res_top:.2f};  {{ 宏观抛压区上界 }}")
-    print(f"RES_BOT := {res_bot:.2f};  {{ 宏观抛压区下界 }}")
-    print(f"SUP_TOP := {sup_top:.2f};  {{ 宏观铁底区上界 }}")
-    print(f"SUP_BOT := {sup_bot:.2f};  {{ 宏观铁底区下界 }}")
-    print(f"PMH_VAL := {pmh:.2f};  {{ 盘前最高价 }}")
-    print(f"POC_VAL := {poc:.2f};  {{ 核心引力轴 }}")
-    print(f"PML_VAL := {pml:.2f};  {{ 盘前最低价 }}")
-    print("=" * 80)
+    # 7. 富途指标参数注入代码 (纯净 7 行，直接全选复制覆盖)
+    print("\n" + "=" * 50)
+    print(f"RES_TOP := {res_top:.2f};")
+    print(f"RES_BOT := {res_bot:.2f};")
+    print(f"SUP_TOP := {sup_top:.2f};")
+    print(f"SUP_BOT := {sup_bot:.2f};")
+    print(f"PMH_VAL := {pmh:.2f};")
+    print(f"POC_VAL := {poc:.2f};")
+    print(f"PML_VAL := {pml:.2f};")
+    print("=" * 50)
 
     # 8. 打印结构化 JSON Payload
     print("\n" + "=" * 80)
