@@ -162,7 +162,10 @@ def calculate_atr(df, period=14):
 
 
 def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
-    """从多日 5M 数据提取 4H/1H 宏观阻力与支撑带 (函数名保持原版完全一致)"""
+    """
+    【自适应近端区域提取引擎】
+    锁定现价 1.0 ~ 2.8 ATR 内的 1H 筹码密集带，彻底杜绝 Y 轴拉扯与盲区问题
+    """
     if df_intraday.empty or len(df_intraday) < 20:
         res_top = round(live_price + atr_val * 2.0, 2)
         res_bot = round(live_price + atr_val * 1.0, 2)
@@ -187,40 +190,38 @@ def extract_macro_vpa_zones(df_intraday, live_price, atr_val):
         .reset_index()
     )
 
-    # 1. 寻找上方阻力密集区
-    higher_bars = df_1h[df_1h["high"] > live_price]
-    if not higher_bars.empty:
-        peak_idx = higher_bars["high"].idxmax()
-        peak_bar = higher_bars.loc[peak_idx]
+    # 1. 寻找上方近端阻力密集区 (锁定在现价上方 1.0 ~ 2.8 ATR 内)
+    upper_candidates = df_1h[
+        (df_1h["high"] > live_price)
+        & (df_1h["high"] <= live_price + atr_val * 3.0)
+    ]
+    if not upper_candidates.empty:
+        peak_bar = upper_candidates.loc[upper_candidates["high"].idxmax()]
         res_top = round(peak_bar["high"], 2)
         body_top = max(peak_bar["open"], peak_bar["close"])
-        res_bot = (
-            round(body_top, 2)
-            if body_top < res_top
-            else round(res_top - atr_val * 0.6, 2)
-        )
+        res_bot = round(max(body_top, res_top - atr_val * 0.6), 2)
         if res_top == res_bot:
             res_bot = round(res_top - atr_val * 0.5, 2)
     else:
+        # 若近端无历史密集峰，基于 ATR 动态生成近端天花板
         res_top = round(live_price + atr_val * 2.0, 2)
-        res_bot = round(live_price + atr_val * 1.0, 2)
+        res_bot = round(live_price + atr_val * 1.2, 2)
 
-    # 2. 寻找下方支撑承接区
-    lower_bars = df_1h[df_1h["low"] < live_price]
-    if not lower_bars.empty:
-        trough_idx = lower_bars["low"].idxmin()
-        trough_bar = lower_bars.loc[trough_idx]
+    # 2. 寻找下方近端承接密集区 (锁定在现价下方 1.0 ~ 2.8 ATR 内)
+    lower_candidates = df_1h[
+        (df_1h["low"] < live_price)
+        & (df_1h["low"] >= live_price - atr_val * 3.0)
+    ]
+    if not lower_candidates.empty:
+        trough_bar = lower_candidates.loc[lower_candidates["low"].idxmin()]
         sup_bot = round(trough_bar["low"], 2)
         body_bot = min(trough_bar["open"], trough_bar["close"])
-        sup_top = (
-            round(body_bot, 2)
-            if body_bot > sup_bot
-            else round(sup_bot + atr_val * 0.6, 2)
-        )
+        sup_top = round(min(body_bot, sup_bot + atr_val * 0.6), 2)
         if sup_top == sup_bot:
             sup_top = round(sup_bot + atr_val * 0.5, 2)
     else:
-        sup_top = round(live_price - atr_val * 1.0, 2)
+        # 若近端无历史密集谷，基于 ATR 动态生成近端地板
+        sup_top = round(live_price - atr_val * 1.2, 2)
         sup_bot = round(live_price - atr_val * 2.0, 2)
 
     # 安全断言：确保上界绝对大于下界
@@ -431,7 +432,7 @@ def generate_sentinel_report():
 
         atr_val = calculate_atr(qqq_intra_all, period=14)
 
-    # 3. 提取 4H/1H 宏观抛压与铁底带
+    # 3. 提取 4H/1H 自适应近端抛压与承接带
     res_top, res_bot, sup_top, sup_bot = extract_macro_vpa_zones(
         qqq_intra_all, live_price, atr_val
     )
